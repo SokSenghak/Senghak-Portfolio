@@ -1,0 +1,8 @@
+{
+  "name": "Senghak Portfolio",
+  "description": "Professional Full-Stack, Mobile, and Web3 Developer Portfolio for Senghak, including a custom AI Twin chat assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

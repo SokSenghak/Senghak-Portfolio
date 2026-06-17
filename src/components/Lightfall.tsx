@@ -227,7 +227,7 @@ export default function Lightfall({
     const renderer = new Renderer({
       dpr: dpr ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
       alpha: true,
-      antialias: true
+      antialias: false
     });
     rendererRef.current = renderer;
     const gl = renderer.gl;
@@ -319,7 +319,7 @@ export default function Lightfall({
       } else {
         lastTimeRef.current = t;
       }
-      if (!paused && programRef.current && meshRef.current) {
+      if (!paused && !document.hidden && programRef.current && meshRef.current) {
         try {
           renderer.render({ scene: meshRef.current });
         } catch (e) {

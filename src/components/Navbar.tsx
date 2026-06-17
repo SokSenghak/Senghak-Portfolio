@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sun, Moon, Menu, X, Code2, Globe, Sparkles } from "lucide-react";
+import { Sun, Moon, Menu, X } from "lucide-react";
 import { Language, Theme } from "../types";
-import { TRANSLATIONS } from "../data";
+import { PROJECT_AVATAR_PATH, TRANSLATIONS } from "../data";
 
 interface NavbarProps {
   lang: Language;
@@ -55,8 +55,12 @@ export default function Navbar({ lang, setLang, theme, toggleTheme }: NavbarProp
             className="flex items-center gap-1.5 focus:outline-none"
             whileHover={{ scale: 1.02 }}
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md">
-              <Code2 size={18} />
+            <div className="h-9 w-9 overflow-hidden rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 shadow-md">
+              <img
+                src={PROJECT_AVATAR_PATH}
+                alt="Senghak profile"
+                className="h-full w-full rounded-[10px] object-cover object-center"
+              />
             </div>
             <span className="font-display text-lg font-bold tracking-tight text-slate-950 dark:text-white flex items-center gap-1">
               Senghak<span className="text-blue-600 font-extrabold">.</span>
@@ -141,6 +145,17 @@ export default function Navbar({ lang, setLang, theme, toggleTheme }: NavbarProp
             className="md:hidden overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-slate-200/50 dark:border-slate-800"
           >
             <div className="px-4 pt-2 pb-6 space-y-1">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <img
+                  src={PROJECT_AVATAR_PATH}
+                  alt="Senghak profile"
+                  className="h-11 w-11 rounded-xl object-cover object-center ring-2 ring-blue-500/30"
+                />
+                <div>
+                  <p className="font-display text-sm font-bold text-slate-950 dark:text-white">Senghak Developer</p>
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-blue-600 dark:text-blue-400">Full-Stack Dev</p>
+                </div>
+              </div>
               {navItems.map((item) => (
                 <a
                   id={`mobile-nav-link-${item.href.replace('#', '')}`}

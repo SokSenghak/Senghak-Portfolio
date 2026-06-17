@@ -27,6 +27,7 @@ export default function App() {
       root.classList.remove("dark");
     }
   }, [theme]);
+  
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));

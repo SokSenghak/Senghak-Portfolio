@@ -1,6 +1,6 @@
 import { Project, Experience, BlogPost, Testimonial, SkillGroup, Language } from "./types";
 
-export const PROJECT_AVATAR_PATH = "/src/assets/images/senghak_profile_1780845886933.png";
+export const PROJECT_AVATAR_PATH = "/senghak_profile_1780845886933.png";
 
 export const PROJECT_DATA: Project[] = [
   {

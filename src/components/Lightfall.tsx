@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Renderer, Program, Mesh, Triangle } from 'ogl';
 import './Lightfall.css';
 
@@ -217,71 +217,126 @@ export default function Lightfall({
   const meshRef = useRef<any>(null);
   const geometryRef = useRef<any>(null);
   const rendererRef = useRef<any>(null);
+  const uniformsRef = useRef<Record<string, { value: any }> | null>(null);
   const mouseTargetRef = useRef<[number, number]>([0, 0]);
   const lastTimeRef = useRef<number>(0);
+  const pausedRef = useRef<boolean>(paused);
+  const mouseInteractionRef = useRef<boolean>(mouseInteraction);
+  const mouseDampeningRef = useRef<number>(mouseDampening);
+  const [webglUnavailable, setWebglUnavailable] = useState(false);
+
+  pausedRef.current = paused;
+  mouseInteractionRef.current = mouseInteraction;
+  mouseDampeningRef.current = mouseDampening;
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const renderer = new Renderer({
-      dpr: dpr ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
+    const canvas = document.createElement('canvas');
+    const contextAttrs: WebGLContextAttributes = {
       alpha: true,
-      antialias: false
-    });
-    rendererRef.current = renderer;
-    const gl = renderer.gl;
-    const canvas = gl.canvas;
+      depth: true,
+      stencil: false,
+      antialias: true,
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: false,
+      powerPreference: 'default'
+    };
 
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.display = 'block';
-    container.appendChild(canvas);
+    let probeGl: WebGLRenderingContext | WebGL2RenderingContext | null = null;
+    try {
+      probeGl = (canvas.getContext('webgl2', contextAttrs) ||
+        canvas.getContext('webgl', contextAttrs)) as WebGLRenderingContext | WebGL2RenderingContext | null;
+    } catch {
+      probeGl = null;
+    }
 
-    const { arr, count, avg } = prepColors(colors);
+    if (!probeGl) {
+      setWebglUnavailable(true);
+      return;
+    }
 
-    const uniforms = {
-      iResolution: { value: [gl.drawingBufferWidth, gl.drawingBufferHeight, 1] },
-      iMouse: { value: [0, 0] },
-      iTime: { value: 0 },
-      uColor0: { value: arr[0] },
-      uColor1: { value: arr[1] },
-      uColor2: { value: arr[2] },
-      uColor3: { value: arr[3] },
-      uColor4: { value: arr[4] },
-      uColor5: { value: arr[5] },
-      uColor6: { value: arr[6] },
-      uColor7: { value: arr[7] },
-      uColorCount: { value: count },
-      uBgColor: { value: hexToRGB(backgroundColor) },
-      uMouseColor: { value: avg },
-      uSpeed: { value: speed },
-      uStreakCount: { value: Math.max(1, Math.min(16, Math.round(streakCount))) },
-      uStreakWidth: { value: streakWidth },
-      uStreakLength: { value: streakLength },
-      uGlow: { value: glow },
-      uDensity: { value: density },
-      uTwinkle: { value: twinkle },
-      uZoom: { value: zoom },
-      uBgGlow: { value: backgroundGlow },
-      uOpacity: { value: opacity },
-      uMouseEnabled: { value: mouseInteraction ? 1 : 0 },
-      uMouseStrength: { value: mouseStrength },
-      uMouseRadius: { value: mouseRadius }
-    } as any;
+    let renderer: Renderer;
+    let gl: any;
+    let program: Program;
+    let geometry: Triangle;
+    let mesh: Mesh;
 
-    const program = new Program(gl, { vertex, fragment, uniforms });
-    programRef.current = program;
+    try {
+      renderer = new Renderer({
+        canvas,
+        dpr: dpr ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
+        alpha: true,
+        antialias: true
+      });
+      gl = renderer.gl;
+      if (!gl) {
+        setWebglUnavailable(true);
+        return;
+      }
+      rendererRef.current = renderer;
 
-    const geometry = new Triangle(gl);
-    geometryRef.current = geometry;
-    const mesh = new Mesh(gl, { geometry, program });
-    meshRef.current = mesh;
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.display = 'block';
+      container.appendChild(canvas);
+
+      const { arr, count, avg } = prepColors(colors);
+
+      const uniforms: Record<string, { value: any }> = {
+        iResolution: { value: [gl.drawingBufferWidth, gl.drawingBufferHeight, 1] },
+        iMouse: { value: [0, 0] },
+        iTime: { value: 0 },
+        uColor0: { value: arr[0] },
+        uColor1: { value: arr[1] },
+        uColor2: { value: arr[2] },
+        uColor3: { value: arr[3] },
+        uColor4: { value: arr[4] },
+        uColor5: { value: arr[5] },
+        uColor6: { value: arr[6] },
+        uColor7: { value: arr[7] },
+        uColorCount: { value: count },
+        uBgColor: { value: hexToRGB(backgroundColor) },
+        uMouseColor: { value: avg },
+        uSpeed: { value: speed },
+        uStreakCount: { value: Math.max(1, Math.min(16, Math.round(streakCount))) },
+        uStreakWidth: { value: streakWidth },
+        uStreakLength: { value: streakLength },
+        uGlow: { value: glow },
+        uDensity: { value: density },
+        uTwinkle: { value: twinkle },
+        uZoom: { value: zoom },
+        uBgGlow: { value: backgroundGlow },
+        uOpacity: { value: opacity },
+        uMouseEnabled: { value: mouseInteraction ? 1 : 0 },
+        uMouseStrength: { value: mouseStrength },
+        uMouseRadius: { value: mouseRadius }
+      };
+      uniformsRef.current = uniforms;
+
+      program = new Program(gl, { vertex, fragment, uniforms });
+      programRef.current = program;
+
+      geometry = new Triangle(gl);
+      geometryRef.current = geometry;
+      mesh = new Mesh(gl, { geometry, program });
+      meshRef.current = mesh;
+      setWebglUnavailable(false);
+    } catch {
+      if (canvas.parentElement === container) {
+        container.removeChild(canvas);
+      }
+      setWebglUnavailable(true);
+      return;
+    }
 
     const resize = () => {
       const rect = container.getBoundingClientRect();
-      renderer.setSize(rect.width, rect.height);
-      uniforms.iResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight, 1];
+      renderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height));
+      if (uniformsRef.current) {
+        uniformsRef.current.iResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight, 1];
+      }
     };
 
     resize();
@@ -289,27 +344,39 @@ export default function Lightfall({
     ro.observe(container);
 
     const onPointerMove = (e: PointerEvent) => {
+      if (!mouseInteractionRef.current || !uniformsRef.current) return;
       const rect = canvas.getBoundingClientRect();
       const scale = renderer.dpr || 1;
       const x = (e.clientX - rect.left) * scale;
       const y = (rect.height - (e.clientY - rect.top)) * scale;
       mouseTargetRef.current = [x, y];
-      if (mouseDampening <= 0) {
-        uniforms.iMouse.value = [x, y];
+      if (mouseDampeningRef.current <= 0) {
+        uniformsRef.current.iMouse.value = [x, y];
       }
     };
-    if (mouseInteraction) {
-      canvas.addEventListener('pointermove', onPointerMove);
-    }
+    canvas.addEventListener('pointermove', onPointerMove);
+
+    const onContextLost = (e: Event) => {
+      e.preventDefault();
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      setWebglUnavailable(true);
+    };
+    canvas.addEventListener('webglcontextlost', onContextLost);
 
     const loop = (t: number) => {
       rafRef.current = requestAnimationFrame(loop);
+      const uniforms = uniformsRef.current;
+      if (!uniforms) return;
       uniforms.iTime.value = t * 0.001;
-      if (mouseDampening > 0) {
+      const dampening = mouseDampeningRef.current;
+      if (dampening > 0) {
         if (!lastTimeRef.current) lastTimeRef.current = t;
         const dt = (t - lastTimeRef.current) / 1000;
         lastTimeRef.current = t;
-        const tau = Math.max(1e-4, mouseDampening);
+        const tau = Math.max(1e-4, dampening);
         let factor = 1 - Math.exp(-dt / tau);
         if (factor > 1) factor = 1;
         const target = mouseTargetRef.current;
@@ -319,11 +386,15 @@ export default function Lightfall({
       } else {
         lastTimeRef.current = t;
       }
-      if (!paused && !document.hidden && programRef.current && meshRef.current) {
+      if (!pausedRef.current && programRef.current && meshRef.current) {
         try {
           renderer.render({ scene: meshRef.current });
-        } catch (e) {
-          console.error(e);
+        } catch {
+          if (rafRef.current) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+          }
+          setWebglUnavailable(true);
         }
       }
     };
@@ -331,7 +402,8 @@ export default function Lightfall({
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (mouseInteraction) canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
       ro.disconnect();
       if (canvas.parentElement === container) {
         container.removeChild(canvas);
@@ -344,15 +416,48 @@ export default function Lightfall({
       callIfFn(programRef.current, 'remove');
       callIfFn(geometryRef.current, 'remove');
       callIfFn(meshRef.current, 'remove');
-      callIfFn(rendererRef.current, 'destroy');
+      try {
+        gl.getExtension('WEBGL_lose_context')?.loseContext();
+      } catch {
+        // Ignore context loss errors during teardown
+      }
       programRef.current = null;
       geometryRef.current = null;
       meshRef.current = null;
       rendererRef.current = null;
+      uniformsRef.current = null;
     };
+  }, [dpr]);
+
+  useEffect(() => {
+    const uniforms = uniformsRef.current;
+    if (!uniforms) return;
+    const { arr, count, avg } = prepColors(colors);
+    uniforms.uColor0.value = arr[0];
+    uniforms.uColor1.value = arr[1];
+    uniforms.uColor2.value = arr[2];
+    uniforms.uColor3.value = arr[3];
+    uniforms.uColor4.value = arr[4];
+    uniforms.uColor5.value = arr[5];
+    uniforms.uColor6.value = arr[6];
+    uniforms.uColor7.value = arr[7];
+    uniforms.uColorCount.value = count;
+    uniforms.uBgColor.value = hexToRGB(backgroundColor);
+    uniforms.uMouseColor.value = avg;
+    uniforms.uSpeed.value = speed;
+    uniforms.uStreakCount.value = Math.max(1, Math.min(16, Math.round(streakCount)));
+    uniforms.uStreakWidth.value = streakWidth;
+    uniforms.uStreakLength.value = streakLength;
+    uniforms.uGlow.value = glow;
+    uniforms.uDensity.value = density;
+    uniforms.uTwinkle.value = twinkle;
+    uniforms.uZoom.value = zoom;
+    uniforms.uBgGlow.value = backgroundGlow;
+    uniforms.uOpacity.value = opacity;
+    uniforms.uMouseEnabled.value = mouseInteraction ? 1 : 0;
+    uniforms.uMouseStrength.value = mouseStrength;
+    uniforms.uMouseRadius.value = mouseRadius;
   }, [
-    dpr,
-    paused,
     colors,
     backgroundColor,
     speed,
@@ -367,16 +472,22 @@ export default function Lightfall({
     opacity,
     mouseInteraction,
     mouseStrength,
-    mouseRadius,
-    mouseDampening
+    mouseRadius
   ]);
+
+  const fallbackGradient = `radial-gradient(ellipse 80% 60% at 50% 20%, ${colors[0] ?? '#3167e3'}33, transparent 70%), radial-gradient(ellipse 60% 50% at 80% 35%, ${colors[1] ?? '#4f46e5'}2e, transparent 70%), radial-gradient(ellipse 60% 50% at 20% 45%, ${colors[2] ?? '#8b5cf6'}26, transparent 70%)`;
 
   return (
     <div
       ref={containerRef}
       className={`lightfall-container ${className ?? ''}`}
       style={{
-        ...(mixBlendMode && { mixBlendMode })
+        ...(mixBlendMode && { mixBlendMode }),
+        ...(webglUnavailable && {
+          backgroundColor,
+          backgroundImage: fallbackGradient,
+          opacity
+        })
       }}
     />
   );

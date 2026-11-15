@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Github, Linkedin, Facebook, Send, Mail, Download, ArrowRight, UserCheck, Sparkles, Terminal } from "lucide-react";
 import { Language, Theme } from "../types";
 import { TRANSLATIONS, PROJECT_AVATAR_PATH } from "../data";
 import Lightfall from "./Lightfall";
+
+const DARK_LIGHTFALL_COLORS = ['#3167e3', '#4f46e5', '#8b5cf6'];
+const LIGHT_LIGHTFALL_COLORS = ['#93c5fd', '#c7d2fe', '#e8d5ff'];
 
 interface HeroProps {
   lang: Language;
@@ -29,13 +32,6 @@ export default function Hero({ lang, theme }: HeroProps) {
   ];
 
   const currentRoles = lang === "EN" ? roles : rolesKh;
-  const lightfallColors = useMemo(
-    () =>
-      theme === "dark"
-        ? ['#3167e3', '#4f46e5', '#8b5cf6']
-        : ['#93c5fd', '#c7d2fe', '#e8d5ff'],
-    [theme]
-  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -53,8 +49,7 @@ export default function Hero({ lang, theme }: HeroProps) {
       {/* Dynamic Glowing Lightfall Shader Background (React Bits) */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <Lightfall
-          dpr={1}
-          colors={lightfallColors}
+          colors={theme === "dark" ? DARK_LIGHTFALL_COLORS : LIGHT_LIGHTFALL_COLORS}
           backgroundColor={theme === "dark" ? "#09090b" : "#f8fafc"}
           speed={0.65}
           streakCount={8}
